@@ -41,14 +41,14 @@ module Rounding =
     /// absolute error increase
     let inline private absError (n:int) wt (wi:float) (ni:int) (d:int) =
         if d=1 then
-            if wi * float n > wt * float ni then wt * float ni / float n - wi
-            else 0.0
+            if wi * float n > wt * float ni then abs(wt / float n - 2.0 * (wi - wt * float ni / float n))
+            else abs(wt / float n)
         else
-            if wi * float n > wt * float ni then 0.0
-            else wi - wt * float ni / float n
+            if wi * float n > wt * float ni then abs(wt / float n)
+            else abs(wt / float n - 2.0 * (wt * float ni / float n - wi))
         // abs(wi-float(ni+d)) - abs(wi-float ni)
     /// relative error increase
-    let inline private relError n wt (wi:float) (ni:int) (d:int) = -absError n wt wi ni d / abs wi
+    let inline private relError n wt (wi:float) (ni:int) (d:int) = absError n wt wi ni d / abs wi
     let distribute n weights =
         let wt = Array.sum weights
         let f = float n / wt
@@ -75,7 +75,7 @@ module Tests =
     let rounding =
         testList "rounding" [
             test "n zero" { Rounding.distribute 0 [|406.0;348.0;246.0;0.0|] == [|0;0;0;0|] }
-            test "twitter" { Rounding.distributePrint 100 [|406.0;348.0;246.0;0.0|] == [|40;35;25;0|] }
+            test "twitter" { Rounding.distribute 100 [|406.0;348.0;246.0;0.0|] == [|40;35;25;0|] }
             test "twitter n negative" { Rounding.distribute -100 [|406.0;348.0;246.0;0.0|] == [|-40;-35;-25;0|] }
             test "twitter ws negative" { Rounding.distribute 100 [|-406.0;-348.0;-246.0;-0.0|] == [|40;35;25;0|] }
             test "twitter both negative" { Rounding.distribute -100 [|-406.0;-348.0;-246.0;-0.0|] == [|-40;-35;-25;0|] }
