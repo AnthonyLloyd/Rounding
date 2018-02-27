@@ -42,7 +42,7 @@ module Rounding =
     let inline private absError (n:int) wt (wi:float) (ni:int) (d:int) =
         if   (wt * float d / float n > 0.0 && wi < wt * float ni / float n)
           || (wt * float d / float n < 0.0 && wi > wt * float ni / float n) then abs(0.5 * wt / float n)
-        else abs(wi - wt * (float ni + float d * 0.5) / float n)
+        else abs(wt * (float ni + float d * 0.5) / float n - wi)
         // abs(wi-float(ni+d)) - abs(wi-float ni)
     /// relative error increase
     let inline private relError n wt (wi:float) (ni:int) (d:int) = absError n wt wi ni d / abs wi
@@ -89,7 +89,7 @@ module Tests =
                     let n2 = Rounding.distribute n w
                     Expect.equal n1 n2 "n1 = n2"
             )
-            testProp "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
+            ftestProp (1057717379, 296418258) "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
                 let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
                 if weightsAreValid w && n>0 && Seq.sum w > 0.0 then
                     Rounding.distribute n w
@@ -97,7 +97,9 @@ module Tests =
                     |> Seq.sort
                     |> Seq.map snd
                     |> Seq.pairwise
-                    |> Seq.iter (fun (ni1,ni2) -> Expect.isLessThanOrEqual ni1 ni2 "ni1 <= ni2")
+                    |> Seq.iter (fun (ni1,ni2) -> 
+                        if ni1 > ni2 then Rounding.distributePrint n w |> ignore
+                        Expect.isLessThanOrEqual ni1 ni2 "ni1 <= ni2")
             )
         ]
 
