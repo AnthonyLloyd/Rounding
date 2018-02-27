@@ -40,12 +40,9 @@ module Rounding =
     let inline private round (f:float) = int(if f<0.0 then f-0.5 else f+0.5)
     /// absolute error increase
     let inline private absError (n:int) wt (wi:float) (ni:int) (d:int) =
-        if d=1 then
-            if wi * float n > wt * float ni then abs(wt / float n - 2.0 * (wi - wt * float ni / float n))
-            else abs(wt / float n)
-        else
-            if wi * float n > wt * float ni then abs(wt / float n)
-            else abs(wt / float n - 2.0 * (wt * float ni / float n - wi))
+        if   (wt * float d / float n > 0.0 && wi < wt * float ni / float n)
+          || (wt * float d / float n < 0.0 && wi > wt * float ni / float n) then abs(0.5 * wt / float n)
+        else abs(wi - wt * (float ni + float d * 0.5) / float n)
         // abs(wi-float(ni+d)) - abs(wi-float ni)
     /// relative error increase
     let inline private relError n wt (wi:float) (ni:int) (d:int) = absError n wt wi ni d / abs wi
@@ -92,27 +89,6 @@ module Tests =
                     let n2 = Rounding.distribute n w
                     Expect.equal n1 n2 "n1 = n2"
             )
-            // ftest "fail" {
-            //     // let x =
-            //     //     Seq.map2 (fun wi ni -> wi, ni)
-            //     //             [|0.5; 0.5; 3.0; -2.0; -0.5; -1.0; -1.0; 2.666666667; 0.75; 1.0; -1.0; 1.0; 1.0; 0.5; -1.0; -2.714285714; 25.26470588|]
-            //     //             [|0; 0; 3; -2; 0; -1; -1; 3; 1; 1; -1; 1; 1; 0; -1; -2; 23|]
-            //     //     |> Seq.sort
-            //     //     |> List.ofSeq
-            //     // Expect.equal x [] "hi"
-            //     // [| 0.6666666667; 1.666666667; 3.0; 2.5; 1.666666667; 2.833333333; 0.0|]
-            //     printfn "%A" (Gen.fraction 2 -1 -2 = Gen.fraction 1 2 2)
-            //     let w = [|2.0/3.0; Gen.fraction 2 -1 -2; 3.0; 2.5; Gen.fraction 1 2 2; 17.0/6.0; 0.0|]
-            //     Array.sum w |> printfn "%A"
-            //     Rounding.distributePrint 12 w
-            //     |> Seq.zip w
-            //     |> Seq.sort
-            //     |> (fun s -> let c = Seq.cache s in printfn "%A" (Seq.toList c); c)
-            //     |> Seq.map snd
-            //     |> Seq.pairwise
-            //     |> Seq.iter (fun (ni1,ni2) -> Expect.isLessThanOrEqual ni1 ni2 "ni1 <= ni2")
-            // }
-            // (1927358133, 296417963)
             testProp "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
                 let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
                 if weightsAreValid w && n>0 && Seq.sum w > 0.0 then
