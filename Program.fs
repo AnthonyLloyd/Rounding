@@ -72,25 +72,25 @@ module Tests =
     let weightsAreValid w = abs(Array.sum w)*float Int32.MaxValue > (Seq.map abs w |> Seq.max)
     let rounding =
         testList "rounding" [
-            test "n zero" { Rounding.distribute 0 [|406.0;348.0;246.0;0.0|] == [|0;0;0;0|] }
-            test "twitter" { Rounding.distribute 100 [|406.0;348.0;246.0;0.0|] == [|40;35;25;0|] }
-            test "twitter n negative" { Rounding.distribute -100 [|406.0;348.0;246.0;0.0|] == [|-40;-35;-25;0|] }
-            test "twitter ws negative" { Rounding.distribute 100 [|-406.0;-348.0;-246.0;-0.0|] == [|40;35;25;0|] }
-            test "twitter both negative" { Rounding.distribute -100 [|-406.0;-348.0;-246.0;-0.0|] == [|-40;-35;-25;0|] }
-            testProp "n total correctly" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
-                let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
-                if weightsAreValid w then
-                    let ns = Rounding.distribute n w
-                    Expect.equal (Array.sum ns) n "sum ns = n"
-            )
-            testProp "negative n returns negative of positive n" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
-                let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
-                if weightsAreValid w then
-                    let n1 = Rounding.distribute -n w |> Array.map (~-)
-                    let n2 = Rounding.distribute n w
-                    Expect.equal n1 n2 "n1 = n2"
-            )
-            testProp "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
+            // test "n zero" { Rounding.distribute 0 [|406.0;348.0;246.0;0.0|] == [|0;0;0;0|] }
+            // test "twitter" { Rounding.distribute 100 [|406.0;348.0;246.0;0.0|] == [|40;35;25;0|] }
+            // test "twitter n negative" { Rounding.distribute -100 [|406.0;348.0;246.0;0.0|] == [|-40;-35;-25;0|] }
+            // test "twitter ws negative" { Rounding.distribute 100 [|-406.0;-348.0;-246.0;-0.0|] == [|40;35;25;0|] }
+            // test "twitter both negative" { Rounding.distribute -100 [|-406.0;-348.0;-246.0;-0.0|] == [|-40;-35;-25;0|] }
+            // testProp "n total correctly" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
+            //     let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
+            //     if weightsAreValid w then
+            //         let ns = Rounding.distribute n w
+            //         Expect.equal (Array.sum ns) n "sum ns = n"
+            // )
+            // testProp "negative n returns negative of positive n" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
+            //     let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
+            //     if weightsAreValid w then
+            //         let n1 = Rounding.distribute -n w |> Array.map (~-)
+            //         let n2 = Rounding.distribute n w
+            //         Expect.equal n1 n2 "n1 = n2"
+            // )
+            ftestProp (1256610375, 296418396) "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
                 let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
                 if weightsAreValid w && n>0 && Seq.sum w > 0.0 then
                     Rounding.distribute n w
