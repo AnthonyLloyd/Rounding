@@ -40,12 +40,13 @@ module Rounding =
     let inline private round (f:float) = int(if f<0.0 then f-0.5 else f+0.5)
     /// absolute error increase
     let inline private absError (n:int) wt (wi:float) (ni:int) (d:int) =
-        if   (wt * float d / float n > 0.0 && wi < wt * float ni / float n)
-          || (wt * float d / float n < 0.0 && wi > wt * float ni / float n) then abs(0.5 * wt / float n)
-        else abs(wt * (float ni + float d * 0.5) / float n - wi)
+        if   (wt * float d / float n > 0.0 && wi <= wt * float ni / float n)
+          || (wt * float d / float n < 0.0 && wi >= wt * float ni / float n) then abs(0.5 * wt / float n)
+        elif wi < wt * float ni / float n then wi - wt * (float ni + float d * 0.5) / float n |> max 0.0
+        else wt * (float ni + float d * 0.5) / float n - wi |> max 0.0
         // abs(wi-float(ni+d)) - abs(wi-float ni)
     /// relative error increase
-    let inline private relError n wt (wi:float) (ni:int) (d:int) = absError n wt wi ni d / abs wi
+    let inline private relError n wt (wi:float) (ni:int) (d:int) = absError n wt wi ni d / (max (abs wi) (abs(wt * 0.01 / float n)))
     let distribute n weights =
         let wt = Array.sum weights
         let f = float n / wt
@@ -89,7 +90,7 @@ module Tests =
                     let n2 = Rounding.distribute n w
                     Expect.equal n1 n2 "n1 = n2"
             )
-            ftestProp (1057717379, 296418258) "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
+            testProp "increase with weight" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
                 let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
                 if weightsAreValid w && n>0 && Seq.sum w > 0.0 then
                     Rounding.distribute n w
