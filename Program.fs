@@ -56,30 +56,49 @@ module Rounding =
             let f = float n / wt
             let ns = Array.map ((*)f >> round) weights
             let d = n-Array.sum ns
+            let s = sign d
+            let sw = if Seq.sum weights > 0.0 then -1.0 else 1.0
             for __ = 1 to abs d do
-                let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError n wt wi ni (sign d), relError n wt wi ni (sign d), -wi, i) weights ns |> Seq.min
-                ns.[i] <- ns.[i] + sign d
+                let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError n wt wi ni s, relError n wt wi ni s, sw * wi, i) weights ns |> Seq.min
+                ns.[i] <- ns.[i] + s
             Some ns
-    // let distributePrint n weights =
-    //     let wt = Array.sum weights
-    //     let f = float n / wt
-    //     let ns = Array.map ((*)f >> round) weights
-    //     let d = n-Array.sum ns
-    //     for __ = 1 to abs d do
-    //         Seq.mapi2 (fun i wi ni -> absError n wt wi ni (sign d), relError n wt wi ni (sign d), -wi, i) weights ns |> Seq.sort |> Seq.toList |> printfn "%A"
-    //         let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError n wt wi ni (sign d), relError n wt wi ni (sign d), -wi, i) weights ns |> Seq.min
-    //         ns.[i] <- ns.[i] + sign d
-    //     printfn "%A" ns
-    //     ns
+    let distributePrint n weights =
+        let wt = Array.sum weights
+        let f = float n / wt
+        let ns = Array.map ((*)f >> round) weights
+        let d = n-Array.sum ns
+        let sw = if Seq.sum weights > 0.0 then -1.0 else 1.0
+        for __ = 1 to abs d do
+            Seq.mapi2 (fun i wi ni -> absError n wt wi ni (sign d), relError n wt wi ni (sign d), sw * wi, i) weights ns |> Seq.sort |> Seq.toList |> printfn "%A"
+            let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError n wt wi ni (sign d), relError n wt wi ni (sign d), sw * wi, i) weights ns |> Seq.min
+            ns.[i] <- ns.[i] + sign d
+        printfn "%A" ns
+        Some ns
 
 module Tests =
     let rounding =
         testList "rounding" [
-            test "n zero" { Rounding.distribute 0 [|406.0;348.0;246.0;0.0|] == Some [|0;0;0;0|] }
-            test "twitter" { Rounding.distribute 100 [|406.0;348.0;246.0;0.0|] == Some [|40;35;25;0|] }
-            test "twitter n negative" { Rounding.distribute -100 [|406.0;348.0;246.0;0.0|] == Some [|-40;-35;-25;0|] }
-            test "twitter ws negative" { Rounding.distribute 100 [|-406.0;-348.0;-246.0;-0.0|] == Some [|40;35;25;0|] }
-            test "twitter both negative" { Rounding.distribute -100 [|-406.0;-348.0;-246.0;-0.0|] == Some [|-40;-35;-25;0|] }
+            test "n zero" {
+                Rounding.distribute 0 [|406.0;348.0;246.0;0.0|] == Some [|0;0;0;0|]
+            }
+            test "twitter" {
+                Rounding.distribute 100 [|406.0;348.0;246.0;0.0|] == Some [|40;35;25;0|]
+            }
+            test "twitter n negative" {
+                Rounding.distribute -100 [|406.0;348.0;246.0;0.0|] == Some [|-40;-35;-25;0|]
+            }
+            test "twitter ws negative" {
+                Rounding.distribute 100 [|-406.0;-348.0;-246.0;-0.0|] == Some [|40;35;25;0|]
+            }
+            test "twitter both negative" {
+                Rounding.distribute -100 [|-406.0;-348.0;-246.0;-0.0|] == Some [|-40;-35;-25;0|]
+            }
+            
+            test "negative example" {
+                Rounding.distribute 42 [|1.5;1.0;39.5;-1.0;1.0|] == Some [|2;1;39;-1;1|]
+                Rounding.distribute -42 [|1.5;1.0;39.5;-1.0;1.0|] == Some [|-2;-1;-39;1;-1|]
+            }
+
             testProp "n total correctly" (fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
                 let w = Array.map (fun (Gen.RationalFloat f) -> f) w.Get
                 Rounding.distribute n w
