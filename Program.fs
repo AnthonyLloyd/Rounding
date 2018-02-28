@@ -22,15 +22,15 @@ let ftestProp stdgen name = ftestPropertyWithConfig stdgen config name
 module Rounding =
     let inline private round (f:float) = int(if f<0.0 then f-0.5 else f+0.5)
     
-    let inline private absError (n:int) wt (wi:float) (ni:int) (d:int) =
-        let wc = wt * float d / float n
-        let wni = wt * float ni / float n
-        if  (wc > 0.0 && wi <= wni) || (wc < 0.0 && wi >= wni) then abs(0.5 * wt / float n)
-        elif wi < wni then wi - wt * (float ni + float d * 0.5) / float n |> max 0.0
-        else wt * (float ni + float d * 0.5) / float n - wi |> max 0.0
+    let inline private absError (f:float) (wi:float) (ni:int) (d:int) =
+        let wc = f * float d
+        let wni = f * float ni
+        if  (wc > 0.0 && wi <= wni) || (wc < 0.0 && wi >= wni) then abs(0.5 * f)
+        elif wi < wni then wi - f * (float ni + float d * 0.5) |> max 0.0
+        else f * (float ni + float d * 0.5) - wi |> max 0.0
 
-    let inline private relError n wt (wi:float) (ni:int) (d:int) =
-        absError n wt wi ni d / (max (abs wi) (abs(wt * 0.01 / float n)))
+    let inline private relError f (wi:float) (ni:int) (d:int) =
+        absError f wi ni d / abs wi
 
     let distribute n weights =
         let wt = Array.sum weights
@@ -42,7 +42,7 @@ module Rounding =
             let s = sign d
             let sw = if Seq.sum weights > 0.0 then -1.0 else 1.0
             for __ = 1 to abs d do
-                let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError n wt wi ni s, relError n wt wi ni s, sw * wi, i) weights ns |> Seq.min
+                let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError f wi ni s, relError f wi ni s, sw * wi, i) weights ns |> Seq.min
                 ns.[i] <- ns.[i] + s
             Some ns
 let roundingTests =
@@ -92,8 +92,8 @@ let roundingTests =
                 let d = if Seq.sum w > 0.0 <> (n>0) then -1 else 1
                 Rounding.distribute n w
                 |> Option.iter (
-                       Seq.zip w
-                    >> Seq.map (snd >> (*)d)
+                       Seq.map ((*)d)
+                    >> Seq.zip w
                     >> Seq.sort
                     >> Seq.pairwise
                     >> Seq.iter (fun (ni1,ni2) ->
