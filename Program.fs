@@ -25,7 +25,7 @@ module Rounding =
     let inline private absError (f:float) (wi:float) (ni:int) (d:int) =
         let wc = f * float d
         let wni = f * float ni
-        if  (wc > 0.0 && wi <= wni) || (wc < 0.0 && wi >= wni) then abs(0.5 * f)
+        if (wc > 0.0 && wi <= wni) || (wc < 0.0 && wi >= wni) then abs(0.5 * f)
         elif wi < wni then wi - f * (float ni + float d * 0.5) |> max 0.0
         else f * (float ni + float d * 0.5) - wi |> max 0.0
 
@@ -75,6 +75,10 @@ let roundingTests =
             Expect.equal r1 (Some [|2;1;39;-1;1|]) "2 etc"
             let r2 = Rounding.distribute -42 [|1.5;1.0;39.5;-1.0;1.0|]
             Expect.equal r2 (Some [|-2;-1;-39;1;-1|]) "-2 etc"
+        }
+        test "problem" {
+            let r = Rounding.distribute 100 [|404.0;397.0;47.0;47.0;47.0;58.0|]
+            Expect.equal r (Some [|40;40;5;5;5;6|]) "o no"
         }
         testProp "n total correctly" (
             fun (n:int) (w:Gen.RationalFloat NonEmptyArray) ->
