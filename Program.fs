@@ -38,12 +38,15 @@ module Rounding =
         else
             let f = float n / wt
             let ns = Array.map ((*)f >> round) weights
-            let d = n-Array.sum ns
-            let s = sign d
-            let sw = if Seq.sum weights > 0.0 then -1.0 else 1.0
+            let d = n - Array.sum ns
             for __ = 1 to abs d do
-                let _,_,_,i = Seq.mapi2 (fun i wi ni -> absError f wi ni s, relError f wi ni s, sw * wi, i) weights ns |> Seq.min
-                ns.[i] <- ns.[i] + s
+                let _,_,_,i = Seq.mapi2 (fun i wi ni ->
+                                            let e1 = absError f wi ni (sign d)
+                                            let e2 = relError f wi ni (sign d)
+                                            let e3 = if wt > 0.0 then -wi else wi
+                                            e1, e2, e3, i
+                                        ) weights ns |> Seq.min
+                ns.[i] <- ns.[i] + sign d
             Some ns
 let roundingTests =
     testList "rounding" [
