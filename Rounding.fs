@@ -30,18 +30,17 @@ let distribute n weights =
         Some ns
 
 module Gen =
-    type RationalFloat = RationalFloat of float
-    let rationalFloat =
+    type RationalFloats = RationalFloats of float[]
+    let rationalFloats =
         let fraction a b c = float a + float b / (abs (float c) + 1.0)
         Gen.map3 fraction Arb.generate Arb.generate Arb.generate
+        |> Gen.arrayOf
         |> Arb.fromGen
-        |> Arb.convert RationalFloat (fun (RationalFloat f) -> f)
-    let rationalFloats (w:_ NonEmptyArray) =
-        Array.map (fun (RationalFloat f) -> f) w.Get
+        |> Arb.convert RationalFloats (fun (RationalFloats f) -> f)
 
 let private config = {
     FsCheckConfig.defaultConfig with
-        arbitrary = typeof<Gen.RationalFloat>.DeclaringType::FsCheckConfig.defaultConfig.arbitrary
+        arbitrary = typeof<Gen.RationalFloats>.DeclaringType::FsCheckConfig.defaultConfig.arbitrary
 }
 let testProp name = testPropertyWithConfig config name
 let ptestProp name = ptestPropertyWithConfig config name
@@ -65,7 +64,7 @@ let roundingTests =
             let r = distribute -100 [|406.0;348.0;246.0;0.0|]
             Expect.equal r (Some [|-40;-35;-25;0|]) "-40 etc"
         }
-        test "twitter ws negative" {
+        test "twitter weights negative" {
             let r = distribute 100 [|-406.0;-348.0;-246.0;-0.0|]
             Expect.equal r (Some [|40;35;25;0|]) "40 etc"
         }
@@ -74,8 +73,8 @@ let roundingTests =
             Expect.equal r (Some [|-40;-35;-25;0|]) "-40 etc"
         }
         test "twitter tricky" {
-            let r = distribute 100 [|404.0;397.0;47.0;47.0;47.0;58.0|]
-            Expect.equal r (Some [|40;39;5;5;5;6|]) "o no"
+            let r = distribute 100 [|404.0;397.0;57.0;57.0;57.0;28.0|]
+            Expect.equal r (Some [|40;39;6;6;6;3|]) "o no"
         }
         test "negative example" {
             let r1 = distribute 42 [|1.5;1.0;39.5;-1.0;1.0|]
@@ -83,29 +82,47 @@ let roundingTests =
             let r2 = distribute -42 [|1.5;1.0;39.5;-1.0;1.0|]
             Expect.equal r2 (Some [|-2;-1;-39;1;-1|]) "-2 etc"
         }
-        testProp "n total correctly" (fun n w ->
-            Gen.rationalFloats w
-            |> distribute n
+        testProp "ni total correctly" (fun n (Gen.RationalFloats ws) ->
+            distribute n ws
             |> Option.iter (fun ns -> Expect.equal (Array.sum ns) n "sum ns = n")
         )
-        testProp "negative n returns negative of positive n" (fun n w ->
-            let w = Gen.rationalFloats w
-            let r1 = distribute -n w |> Option.map (Array.map (~-))
-            let r2 = distribute n w
-            Expect.equal r1 r2 "r1 = r2"
+        testProp "negative n returns opposite of positive n" (
+            fun n (Gen.RationalFloats ws) ->
+                let r1 = distribute -n ws |> Option.map (Array.map (~-))
+                let r2 = distribute n ws
+                Expect.equal r1 r2 "r1 = r2"
         )
-        testProp "increase with weight" (fun n w ->
-            let w = Gen.rationalFloats w
-            let d = if Seq.sum w > 0.0 <> (n>0) then -1 else 1
-            distribute n w
+        testProp "increase with weight" (fun n (Gen.RationalFloats ws) ->
+            let d = if Seq.sum ws > 0.0 <> (n>0) then -1 else 1
+            distribute n ws
             |> Option.iter (
                    Seq.map ((*)d)
-                >> Seq.zip w
+                >> Seq.zip ws
                 >> Seq.sort
                 >> Seq.pairwise
                 >> Seq.iter (fun (ni1,ni2) ->
                     Expect.isLessThanOrEqual ni1 ni2 "ni1 <= ni2")
             )
+        )
+        testProp "smallest error" (fun n (Gen.RationalFloats ws) changes ->
+            distribute n ws
+            |> Option.iter (fun ns ->
+                let totalError ns =
+                    let wt = Seq.sum ws
+                    Seq.map2 (fun ni wi ->
+                        float ni * wt / float n - wi |> abs
+                    ) ns ws
+                    |> Seq.sum
+                let err1 = totalError ns
+                let l = Array.length ns
+                List.iter (fun (i,j) ->
+                    ns.[abs i % l] <- ns.[abs i % l] - 1
+                    ns.[abs j % l] <- ns.[abs j % l] + 1
+                ) changes
+                let err2 = totalError ns
+                Expect.floatLessThanOrClose
+                    Accuracy.veryHigh err1 err2 "err1 <= err2"
+                )
         )
     ]
 
